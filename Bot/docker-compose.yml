@@ -1,0 +1,11 @@
+services:
+  quartermaster:
+    build: .
+    container_name: quartermaster
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+    volumes:
+      - ./logs:/app/logs
