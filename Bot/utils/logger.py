@@ -1,3 +1,5 @@
+# Deprecated: Use logging configuration from config/logging.yaml instead.
+
 import logging
 import os
 from logging.handlers import RotatingFileHandler
