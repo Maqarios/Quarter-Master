@@ -1,3 +1,10 @@
+"""
+Discord bot application for Quarter Master.
+
+This module initializes and runs a Discord bot with cog support,
+logging configuration, and command synchronization.
+"""
+
 import logging
 import logging.config
 import os
@@ -9,95 +16,78 @@ from discord.ext import commands
 
 class Bot(commands.Bot):
     """
-    A custom Discord bot class extending `commands.Bot` with logging and extension management.
+    Custom Discord bot class extending discord.ext.commands.Bot.
+
+    This bot includes automatic cog loading, command tree synchronization,
+    and comprehensive logging throughout its lifecycle.
 
     Attributes:
-        log (logging.Logger): Logger instance for this bot class.
-        extensions (list): List of extension module names to load.
-
-    Methods:
-        __init__():
-            Initializes the bot with specific intents, logging, and extension list.
-
-        async setup_hook():
-            Loads extensions specified in `self.extensions` and logs the result.
-            Synchronizes the command tree with Discord.
-
-        async on_ready():
-            Logs when the bot has connected to Discord and the number of guilds it is in.
-
-        async close():
-            Logs the shutdown process and calls the parent close method.
+        log (logging.Logger): Logger instance for this bot.
+        extension_list (list[str]): List of extension names to load on startup.
     """
 
-    def __init__(self):
+    def __init__(self, log):
         """
-        Initializes the bot instance with specific Discord intents, logging, and extensions.
+        Initialize the Bot instance.
 
-        Sets up:
-            - Discord intents with message content enabled
-            - Command prefix set to "/"
-            - Logger instance for the bot
-            - Empty extensions list for loading cogs
-
-        Attributes:
-            log (logging.Logger): Logger instance for bot operations.
-            extensions (list): Empty list to be populated with extension module names.
+        Args:
+            log (logging.Logger): Logger instance for logging bot activities.
         """
-
         # Configure Discord intents
         intents = discord.Intents.default()
         intents.message_content = True
 
+        # Initialize the parent Bot class
         super().__init__(command_prefix="/", intents=intents)
 
+        # Set up logging
         self.log = logging.getLogger(__name__)
-        self.extensions = []
+
+        # List of extensions (cogs) to load
+        self.extension_list = ["cogs.general"]
 
     async def setup_hook(self):
         """
-        Asynchronously sets up the bot by loading all extensions specified in self.extensions.
-        Logs the success or failure of each extension load attempt. After loading extensions,
-        synchronizes the command tree with Discord.
+        Perform asynchronous setup tasks.
 
-        Raises:
-            Exception: If an extension fails to load, logs the error but continues loading others.
+        Loads all extensions from extension_list and synchronizes
+        the command tree with Discord. Called once when the bot starts.
         """
-
-        for ext in self.extensions:
+        # Load each extension and log the outcome
+        for ext in self.extension_list:
             try:
                 await self.load_extension(ext)
                 self.log.info(f"Loaded extension: {ext}")
             except Exception as e:
                 self.log.error(f"Failed to load extension {ext}: {e}")
 
+        # Synchronize command tree with Discord
         await self.tree.sync()
         self.log.info("Command tree synchronized")
 
     async def on_ready(self):
         """
-        Event handler that is called when the bot has successfully connected to Discord.
+        Event handler called when the bot has successfully connected to Discord.
 
-        Logs the bot's username and the number of guilds (servers) the bot is currently in.
+        Logs the bot's username and the number of guilds it's connected to.
         """
-
         self.log.info(f"{self.user} has connected to Discord!")
         self.log.info(f"Bot is in {len(self.guilds)} guilds")
 
     async def close(self):
         """
-        Asynchronously shuts down the bot, logging shutdown events before and after calling the superclass's close method.
+        Gracefully shut down the bot.
 
-        This method performs the following steps:
-        1. Logs a message indicating the bot is shutting down.
-        2. Calls the parent class's asynchronous close method to handle shutdown procedures.
-        3. Logs a message confirming the bot has shut down successfully.
+        Logs shutdown progress and calls the parent class's close method
+        to properly disconnect from Discord.
         """
-
+        # Log shutdown initiation
         self.log.info("Bot is shutting down...")
 
+        # Call the parent class's close method
         await super().close()
 
+        # Log shutdown completion
         self.log.info("Bot has shut down successfully")
 
 
@@ -123,6 +113,7 @@ if __name__ == "__main__":
             f"Logging config file not found at {logging_config_path}, using basic config"
         )
 
+    # Create a logger for this module
     log = logging.getLogger(__name__)
 
     # Validate the TOKEN
@@ -132,7 +123,7 @@ if __name__ == "__main__":
 
     # Run the bot
     try:
-        bot = Bot()
+        bot = Bot(log)
         bot.run(TOKEN)
     except Exception as e:
         log.error(f"Error running the bot: {e}")
