@@ -1,4 +1,5 @@
 # Bot environment variables file
 Bot/.env
 
-# 
+# Log files
+logs/
