@@ -3,3 +3,7 @@ Bot/.env
 
 # Log files
 logs/
+
+# Python Virtual Environment
+.venv/
+*/.venv/
