@@ -6,7 +6,6 @@ to all users.
 
 from discord import Interaction, app_commands
 from discord.ext import commands
-from utils.utils import log_command
 
 
 class General(commands.Cog):
@@ -37,12 +36,6 @@ class General(commands.Cog):
         Args:
             interaction: The Discord interaction object.
         """
-        # Get guild and user information
-        guild = interaction.guild
-        user = interaction.user
-
-        # Log command usage with context
-        log_command(self.log, "ping", guild, user)
 
         # Respond with latency
         latency = round(self.bot.latency * 1000)
