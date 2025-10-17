@@ -1,11 +1,31 @@
 services:
+  db:
+    image: postgres:16
+    container_name: quartermaster_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: quartermaster
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
   quartermaster:
     build: .
-    container_name: quartermaster
+    container_name: quartermaster_bot
     restart: unless-stopped
+    depends_on:
+      - db
     env_file:
       - .env
     environment:
+      - LOGGING_CONFIG=${LOGGING_CONFIG}
       - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - DATABASE_URL=postgresql://postgres:${DATABASE_PASSWORD}@db:5432/quartermaster
     volumes:
       - ./logs:/app/logs
+
+volumes:
+  postgres_data:
