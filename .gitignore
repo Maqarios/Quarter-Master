@@ -7,3 +7,6 @@ logs/
 # Python Virtual Environment
 .venv/
 */.venv/
+
+# Temporary files for testing code
+*/temp.py
