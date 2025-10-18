@@ -20,7 +20,7 @@ Security Notes:
 
 Usage Example:
     >>> from database import get_db_context
-    >>> from models.api_keys import APIKey
+    >>> from models.api_key import APIKey
     >>>
     >>> with get_db_context() as db:
     ...     # Create new API key
