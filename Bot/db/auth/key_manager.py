@@ -42,7 +42,7 @@ import secrets
 from typing import Optional, Tuple
 
 import bcrypt
-from db.models.api_key import APIKey
+from db.models import APIKey
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 

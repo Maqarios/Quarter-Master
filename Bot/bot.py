@@ -41,7 +41,7 @@ from typing import Optional
 
 import discord
 import yaml
-from db.database import check_db_connection
+from db import check_db_connection
 from discord.ext import commands
 from dotenv import load_dotenv
 

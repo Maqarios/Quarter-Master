@@ -20,8 +20,8 @@ Security Notes:
     - Keys cannot be reactivated once revoked - create new keys instead
 
 Usage Example:
-    >>> from database import get_db_context
-    >>> from models.api_key import APIKey
+    >>> from db import get_db_context
+    >>> from models import APIKey
     >>>
     >>> with get_db_context() as db:
     ...     # Create new API key
@@ -36,9 +36,8 @@ Usage Example:
 
 import uuid
 from datetime import datetime, timezone
-from time import time
 
-from db.database import Base
+from db import Base
 from sqlalchemy import BigInteger, Column, DateTime, Index, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
