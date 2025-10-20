@@ -1,3 +1,4 @@
+# Bot/cogs/general.py
 """General commands cog for the Discord bot.
 
 This module provides essential utility commands that are available to all users
