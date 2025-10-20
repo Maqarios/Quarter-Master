@@ -1,3 +1,4 @@
+# Bot/bot.py
 """
 Discord bot application for Quarter Master.
 
