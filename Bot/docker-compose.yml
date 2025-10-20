@@ -10,14 +10,38 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5433:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d quartermaster" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    build: .
+    container_name: quartermaster_migrate
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://postgres:${DATABASE_PASSWORD}@db:5432/quartermaster
+    volumes:
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
+    entrypoint: []
+    command: alembic upgrade head
+    profiles:
+      - tools
 
   quartermaster:
     build: .
     container_name: quartermaster_bot
     restart: unless-stopped
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     env_file:
       - .env
     environment:
@@ -26,6 +50,7 @@ services:
       - DATABASE_URL=postgresql://postgres:${DATABASE_PASSWORD}@db:5432/quartermaster
     volumes:
       - ./logs:/app/logs
+      - ./db/alembic/versions:/app/db/alembic/versions
 
 volumes:
   postgres_data:
