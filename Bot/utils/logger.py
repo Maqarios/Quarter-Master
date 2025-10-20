@@ -1,4 +1,7 @@
-# Deprecated: Use logging configuration from config/logging.yaml instead.
+# Bot/utils/logger.py
+"""Logger utility for the Discord bot."""
+
+# DEPRECATED: Use logging configuration from config/logging.yaml instead.
 
 import logging
 import os
