@@ -99,7 +99,7 @@ class Bot(commands.Bot):
         self.log = log
 
         # List of extensions (cogs) to load
-        self.extension_list = ["cogs.general"]
+        self.extension_list = ["cogs.general", "cogs.api_key"]
 
     async def setup_hook(self) -> None:
         """
