@@ -143,7 +143,7 @@ def verify_api_key(provided_key: str, hashed_key: str) -> bool:
 
 
 def create_api_key(
-    db: Session, discord_id: int, description: Optional[str] = None
+    db: Session, discord_id: int, description: str
 ) -> Tuple[str, APIKey]:
     """
     Create a new API key for a Discord user.
@@ -151,7 +151,7 @@ def create_api_key(
     Args:
         db: Database session
         discord_id: Discord user ID
-        description: Optional key description
+        description: Key description
 
     Returns:
         Tuple of (plaintext_key, api_key_record)
@@ -163,10 +163,12 @@ def create_api_key(
     if not isinstance(discord_id, int) or discord_id <= 0:
         raise ValueError("Discord ID must be a positive integer")
 
-    if description is not None and (
-        not isinstance(description, str) or len(description) > 255
-    ):
-        raise ValueError("Description must be a string with max 255 characters")
+    if not description or not isinstance(description, str):
+        raise ValueError("Description must be a non-empty string")
+
+    description = description.strip()
+    if not description or len(description) > 255:
+        raise ValueError("Description must be between 1 and 255 characters")
 
     try:
         # Generate plaintext key
@@ -179,7 +181,7 @@ def create_api_key(
         api_key_record = APIKey(
             discord_id=discord_id,
             hashed_key=hashed,
-            description=description.strip() if description else None,
+            description=description,
         )
 
         db.add(api_key_record)
