@@ -1,3 +1,4 @@
+# Bot/db/auth/key_manager.py
 """
 API Key Management Module for Quarter Master Bot.
 
