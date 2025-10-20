@@ -37,7 +37,7 @@ import uuid
 from datetime import datetime, timezone
 from time import time
 
-from database import Base
+from db.databasedatabase import Base
 from sqlalchemy import BigInteger, Column, DateTime, Index, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
