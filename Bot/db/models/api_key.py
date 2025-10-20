@@ -1,3 +1,4 @@
+# Bot/db/models/api_key.py
 """
 API Key model for Quarter Master Bot authentication system.
 
