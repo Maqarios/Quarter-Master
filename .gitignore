@@ -7,6 +7,3 @@ logs/
 # Python Extra files
 **/.venv/
 **/__pycache__/
-
-# Temporary files for testing code
-*/temp.py
