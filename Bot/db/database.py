@@ -1,3 +1,4 @@
+# Bot/db/database.py
 """
 Database configuration and utilities for Quarter Master Bot.
 
