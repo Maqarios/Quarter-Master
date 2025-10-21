@@ -14,4 +14,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Use a shell script to run migrations then exec into Python for proper signal handling
-CMD ["sh", "-c", "alembic upgrade head && exec python bot.py"]
+CMD ["sh", "-c", "alembic upgrade head && exec python main.py"]

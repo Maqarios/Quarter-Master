@@ -23,12 +23,13 @@ Environment Variables:
     LOGGING_CONFIG: Optional path to YAML logging configuration file
 
 Example:
-    Run the bot from command line:
-        $ python bot.py
-
-    Or import and run programmatically:
+    Import and run programmatically:
         >>> import asyncio
+        >>> from bot import main
         >>> exit_code = asyncio.run(main())
+
+    Note:
+        To run the bot, use main.py instead of running this module directly
 """
 
 import asyncio
@@ -355,7 +356,3 @@ async def main() -> int:
         log.info("Application shutdown complete")
 
     return 0
-
-
-if __name__ == "__main__":
-    sys.exit(asyncio.run(main()))
