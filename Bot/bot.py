@@ -41,7 +41,7 @@ from typing import Optional
 
 import discord
 import yaml
-from db import check_db_connection
+from db import check_db_connection, db_engine
 from discord.ext import commands
 from dotenv import load_dotenv
 
@@ -100,6 +100,9 @@ class Bot(commands.Bot):
 
         # List of extensions (cogs) to load
         self.extension_list = ["cogs.general", "cogs.api_key"]
+
+        # Track if we've already cleaned up resources
+        self._cleanup_done = False
 
     async def setup_hook(self) -> None:
         """
@@ -170,16 +173,37 @@ class Bot(commands.Bot):
         """
         Gracefully shut down the bot and clean up resources.
 
-        Performs proper cleanup by calling the parent class's close method,
-        which handles disconnecting from Discord and cleaning up internal
-        resources.
+        Performs proper cleanup including:
+        - Disconnecting from Discord
+        - Disposing of database engine connections
+        - Cleaning up internal resources
 
         Note:
             This method should be called when shutting down the bot to ensure
-            proper cleanup and avoid resource leaks.
+            proper cleanup and avoid resource leaks. Database cleanup happens
+            after Discord cleanup and is idempotent (safe to call multiple times).
         """
-        # Call the parent class's close method
+        self.log.info("Closing bot and cleaning up resources...")
+
+        # Call the parent class's close method first
         await super().close()
+        self.log.info("Discord connection closed")
+
+        # Dispose of database engine to close all connections
+        # This happens after super().close() and uses a flag to ensure
+        # it only runs once even if close() is called multiple times
+        if not self._cleanup_done:
+            try:
+                self.log.info("Disposing database engine...")
+                db_engine.dispose()
+                self._cleanup_done = True
+                self.log.info("Database engine disposed successfully")
+            except Exception as e:
+                self.log.error(f"Error disposing database engine: {e}")
+        else:
+            self.log.debug("Cleanup already performed, skipping database disposal")
+
+        self.log.info("Bot closed successfully")
 
 
 async def main() -> int:
@@ -294,11 +318,10 @@ async def main() -> int:
             {bot_task, shutdown_task}, return_when=asyncio.FIRST_COMPLETED
         )
 
-        # If shutdown was triggered, give bot time to close gracefully
+        # If shutdown was triggered, log it but don't call close() yet
+        # The finally block will handle cleanup to avoid redundant calls
         if shutdown_event.is_set():
-            log.info("Shutdown signal received, closing bot...")
-            if not bot.is_closed():
-                await asyncio.wait_for(bot.close(), timeout=BOT_CLOSE_TIMEOUT)
+            log.info("Shutdown signal received, stopping bot task...")
 
         # Cancel any remaining tasks
         for task in pending:
@@ -318,11 +341,12 @@ async def main() -> int:
         log.error(f"Unexpected error: {e}", exc_info=True)
         return 1
     finally:
-        # Final cleanup - ensure bot is closed
+        # Final cleanup - ensure bot is closed and resources are cleaned up
+        # Always attempt cleanup regardless of bot state
         try:
-            if bot and not bot.is_closed():
-                log.info("Performing final bot cleanup...")
-                await asyncio.wait_for(bot.close(), timeout=BOT_CLOSE_TIMEOUT)
+            log.info("Performing final bot cleanup...")
+            # Call close() even if bot appears closed - our cleanup is idempotent
+            await asyncio.wait_for(bot.close(), timeout=BOT_CLOSE_TIMEOUT)
         except asyncio.TimeoutError:
             log.warning("Bot close timed out, forcing shutdown")
         except Exception as e:

@@ -51,6 +51,10 @@ services:
     volumes:
       - ./logs:/app/logs
       - ./db/alembic/versions:/app/db/alembic/versions
+    # Ensure proper signal handling and graceful shutdown
+    stop_signal: SIGTERM
+    stop_grace_period: 15s
+    init: true
 
 volumes:
   postgres_data:
