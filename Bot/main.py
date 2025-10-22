@@ -1,31 +1,23 @@
 #!/usr/bin/env python3
 # Bot/main.py
-"""
-Main entry point for Quarter Master application.
+"""Command-line entrypoint for the Quarter Master application.
 
-This module serves as the primary entry point for running the Quarter Master
-Discord bot. It imports and executes the bot's main function, handling the
-application lifecycle and exit codes.
+This small module runs the Discord bot's ``main()`` coroutine and exits
+with its return code. Keep orchestration (how processes are started)
+separate from application logic (in ``bot.py``).
 
-This separation allows the bot module to be imported and tested independently
-while maintaining a clean entry point for production deployment.
+Run:
+    python main.py
 
-Usage:
-    Run from command line:
-        $ python main.py
+Or make it executable on Unix:
+    chmod +x main.py
+    ./main.py
 
-    Or make executable and run directly (Unix):
-        $ chmod +x main.py
-        $ ./main.py
-
-Exit Codes:
-    0: Successful execution and graceful shutdown
-    1: Error during execution (invalid token, configuration error, etc.)
-
-Example:
-    >>> import subprocess
-    >>> result = subprocess.run(['python', 'main.py'])
-    >>> print(f"Bot exited with code: {result.returncode}")
+Notes:
+    - For testing or embedding, import ``bot.main`` directly instead of
+      invoking this script.
+    - In future you can extend this entrypoint to launch multiple
+      services (for example, an API server) concurrently.
 """
 
 import asyncio

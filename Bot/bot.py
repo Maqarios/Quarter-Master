@@ -1,35 +1,24 @@
 # Bot/bot.py
-"""
-Discord bot application for Quarter Master.
+"""Quarter Master Discord bot module.
 
-This module provides a complete Discord bot implementation with features including:
-- Automatic cog (extension) loading and management
-- Command tree synchronization with Discord
-- Database connectivity validation
-- Comprehensive logging and error handling
-- Graceful shutdown handling with signal management
-- Cross-platform compatibility (Unix/Windows)
+Provides the bot implementation (``Bot``) and an asynchronous
+``main()`` function that manages lifecycle, logging, signal handling,
+and graceful shutdown. This module is intended to be imported by tests
+or by an external entrypoint.
 
-The bot uses SQLAlchemy for database operations and supports both development
-and production environments with appropriate configurations.
-
-Constants:
-    BOT_CLOSE_TIMEOUT (float): Maximum time to wait for bot shutdown (10.0 seconds)
-    TASK_CLEANUP_TIMEOUT (float): Maximum time to wait for task cleanup (5.0 seconds)
-    DEFAULT_LOG_DIR (str): Default directory for log files (/app/logs)
-
-Environment Variables:
-    DISCORD_TOKEN: Required Discord bot token for authentication
-    LOGGING_CONFIG: Optional path to YAML logging configuration file
-
-Example:
-    Import and run programmatically:
+Usage:
+    Import and run programmatically (preferred for tests):
         >>> import asyncio
         >>> from bot import main
         >>> exit_code = asyncio.run(main())
 
-    Note:
-        To run the bot, use main.py instead of running this module directly
+Environment variables read:
+    DISCORD_TOKEN -- required: Discord bot token
+    LOGGING_CONFIG -- optional: path to a YAML logging config
+
+Note:
+    Do not run this module directly. Use the project entrypoint
+    ``main.py`` (or another orchestrator) to start the application.
 """
 
 import asyncio
