@@ -3,22 +3,42 @@ services:
     image: postgres:16
     container_name: quartermaster_db
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_DB: quartermaster
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      PGPORT: ${DB_PORT}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - quartermaster_network
     ports:
-      - "5433:5432"
+      - "${DB_PORT}:${DB_PORT}"
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d quartermaster" ]
-      interval: 5s
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME} -p ${DB_PORT}" ]
+      interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      com.quartermaster.service: "database"
+      com.quartermaster.project: "quartermaster-bot"
 
   migrate:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: quartermaster_migrate
     depends_on:
       db:
@@ -26,17 +46,31 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=postgresql://postgres:${DATABASE_PASSWORD}@db:5432/quartermaster
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
     volumes:
-      - ./alembic:/app/alembic
-      - ./alembic.ini:/app/alembic.ini
+      - ./alembic:/app/alembic:ro
+      - ./alembic.ini:/app/alembic.ini:ro
+    networks:
+      - quartermaster_network
     entrypoint: []
     command: alembic upgrade head
     profiles:
       - tools
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      com.quartermaster.service: "migration"
+      com.quartermaster.project: "quartermaster-bot"
 
   quartermaster:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: quartermaster_bot
     restart: unless-stopped
     depends_on:
@@ -45,16 +79,40 @@ services:
     env_file:
       - .env
     environment:
-      - LOGGING_CONFIG=${LOGGING_CONFIG}
-      - DISCORD_TOKEN=${DISCORD_TOKEN}
-      - DATABASE_URL=postgresql://postgres:${DATABASE_PASSWORD}@db:5432/quartermaster
+      LOGGING_CONFIG: ${LOGGING_CONFIG}
+      DISCORD_TOKEN: ${DISCORD_TOKEN}
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
     volumes:
       - ./logs:/app/logs
-      - ./db/alembic/versions:/app/db/alembic/versions
-    # Ensure proper signal handling and graceful shutdown
+      - ./alembic/versions:/app/alembic/versions:ro
+    networks:
+      - quartermaster_network
     stop_signal: SIGTERM
     stop_grace_period: 15s
     init: true
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      com.quartermaster.service: "bot"
+      com.quartermaster.project: "quartermaster-bot"
+
+networks:
+  quartermaster_network:
+    driver: bridge
+    name: quartermaster_network
 
 volumes:
   postgres_data:
+    name: quartermaster_postgres_data
