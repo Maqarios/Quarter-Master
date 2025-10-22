@@ -38,6 +38,7 @@ Author: Quarter Master Bot Development Team
 Version: 1.0.0
 Dependencies: discord.py, sqlalchemy, db.auth.key_manager
 """
+import logging
 from typing import TYPE_CHECKING
 
 from db import get_db_context
@@ -46,17 +47,33 @@ from discord import Interaction, app_commands
 from discord.ext import commands
 from sqlalchemy.exc import SQLAlchemyError
 
+log = logging.getLogger(__name__)
+
 # Use TYPE_CHECKING to avoid circular imports
 if TYPE_CHECKING:
     from bot import Bot
 
 
 class APIKeyCog(commands.Cog):
-    """Cog for managing API keys via Discord commands."""
+    """
+    Cog for managing API keys via Discord commands.
+
+    Provides Discord slash commands for generating and managing API keys
+    that are used to authenticate with the Quarter Master API. Implements
+    security features including rate limiting and ephemeral responses.
+
+    Attributes:
+        bot (Bot): The Discord bot instance that this cog is attached to.
+    """
 
     def __init__(self, bot: "Bot") -> None:
+        """
+        Initialize the APIKeyCog with a bot instance.
+
+        Args:
+            bot (Bot): The Discord bot instance that will host this cog.
+        """
         self.bot = bot
-        self.log = bot.log.getChild(__name__)
 
     @app_commands.command(name="generate_api_key", description="Generate a new API key")
     @app_commands.describe(
@@ -69,13 +86,25 @@ class APIKeyCog(commands.Cog):
         """
         Generate a new API key for the requesting user.
 
+        Creates a new API key associated with the Discord user's ID and stores
+        it in the database. The plaintext key is shown only once in the response
+        and cannot be retrieved later.
+
         Args:
-            interaction: Discord interaction object
-            description: User-provided description for the key
+            interaction (Interaction): Discord interaction object containing user
+                and command context.
+            description (str): User-provided description for the key. Must be
+                non-empty and no longer than 255 characters.
+
+        Raises:
+            ValueError: If description validation fails (handled internally).
+            SQLAlchemyError: If database operations fail (handled internally).
 
         Note:
-            Keys are shown only once and cannot be retrieved later.
-            Rate limited to prevent abuse.
+            - Keys are shown only once and cannot be retrieved later
+            - Rate limited to 1 key per 60 seconds per user
+            - All responses are ephemeral (visible only to the requesting user)
+            - Automatic database rollback on errors
         """
         # Defer response for longer operations
         await interaction.response.defer(ephemeral=True)
@@ -92,9 +121,7 @@ class APIKeyCog(commands.Cog):
                 # Commit the transaction
                 db.commit()
 
-                self.log.info(
-                    f"User {discord_id} generated API key {api_key_record.id}"
-                )
+                log.info(f"User {discord_id} generated API key {api_key_record.id}")
 
                 await interaction.followup.send(
                     f"\n✅ **API Key Generated Successfully**\n\n"
@@ -113,7 +140,7 @@ class APIKeyCog(commands.Cog):
 
             except ValueError as e:
                 # Validation errors from create_api_key
-                self.log.warning(
+                log.warning(
                     f"Validation error generating API key for user {discord_id}: {e}"
                 )
                 await interaction.followup.send(
@@ -124,7 +151,7 @@ class APIKeyCog(commands.Cog):
 
             except SQLAlchemyError as e:
                 # Database errors
-                self.log.error(
+                log.error(
                     f"Database error generating API key for user {discord_id}: {e}"
                 )
                 await interaction.followup.send(
@@ -136,7 +163,7 @@ class APIKeyCog(commands.Cog):
 
             except Exception as e:
                 # Unexpected errors
-                self.log.exception(
+                log.exception(
                     f"Unexpected error generating API key for user {discord_id}: {e}"
                 )
                 await interaction.followup.send(
@@ -150,14 +177,28 @@ class APIKeyCog(commands.Cog):
     async def generate_api_key_error(
         self, interaction: Interaction, error: app_commands.AppCommandError
     ) -> None:
-        """Handle cooldown and other command errors."""
+        """
+        Handle errors from the generate_api_key command.
+
+        Specifically handles cooldown errors by informing users how long they
+        must wait. Other errors are logged and a generic error message is shown.
+
+        Args:
+            interaction (Interaction): Discord interaction object for sending
+                error responses.
+            error (app_commands.AppCommandError): The error that occurred during
+                command execution.
+
+        Note:
+            All error responses are ephemeral (visible only to the requesting user).
+        """
         if isinstance(error, app_commands.CommandOnCooldown):
             await interaction.response.send_message(
                 f"⏳ **Rate Limit:** Please wait {error.retry_after:.0f} seconds before generating another key.",
                 ephemeral=True,
             )
         else:
-            self.log.error(f"Command error: {error}")
+            log.error(f"Command error: {error}")
             await interaction.response.send_message(
                 "❌ An error occurred. Please try again later.",
                 ephemeral=True,

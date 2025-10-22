@@ -39,6 +39,9 @@ root:
   handlers: [console, file, error_file]
 
 loggers:
+  sqlalchemy.engine:
+    level: WARNING
+    propagate: false
   discord:
     level: WARNING
     propagate: false

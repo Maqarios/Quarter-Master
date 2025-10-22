@@ -1,39 +1,41 @@
 # Bot/bot.py
 """Quarter Master Discord bot module.
 
-Provides the bot implementation (``Bot``) and an asynchronous
-``main()`` function that manages lifecycle, logging, signal handling,
-and graceful shutdown. This module is intended to be imported by tests
-or by an external entrypoint.
+Provides the bot implementation (``Bot``) and an asynchronous ``main()`` function
+that manages lifecycle, logging, signal handling, and graceful shutdown.
+
+The Bot class extends discord.ext.commands.Bot with enhanced functionality including:
+    - Automatic cog loading and command synchronization
+    - Database connectivity validation
+    - Comprehensive lifecycle logging
+    - Graceful shutdown and resource cleanup
 
 Usage:
-    Import and run programmatically (preferred for tests):
+    Run via the main.py entrypoint:
+        >>> python main.py
+
+    Or import and run programmatically (useful for testing):
         >>> import asyncio
         >>> from bot import main
         >>> exit_code = asyncio.run(main())
 
-Environment variables read:
-    DISCORD_TOKEN -- required: Discord bot token
-    LOGGING_CONFIG -- optional: path to a YAML logging config
-
-Note:
-    Do not run this module directly. Use the project entrypoint
-    ``main.py`` (or another orchestrator) to start the application.
+Environment Variables:
+    DISCORD_TOKEN (required): Discord bot authentication token
+    LOGGING_CONFIG (optional): Path to YAML logging configuration file
 """
 
 import asyncio
 import logging
-import logging.config
-import os
 import signal
 import sys
 from typing import Optional
 
 import discord
-import yaml
 from config import settings
 from db import check_db_connection, db_engine
 from discord.ext import commands
+
+log = logging.getLogger(__name__)
 
 # Constants
 BOT_CLOSE_TIMEOUT = 10.0
@@ -43,38 +45,31 @@ DEFAULT_LOG_DIR = "/app/logs"
 
 class Bot(commands.Bot):
     """
-    Custom Discord bot class extending discord.ext.commands.Bot.
+    Custom Discord bot class with enhanced lifecycle management.
 
-    This bot provides enhanced functionality including automatic cog loading,
-    command tree synchronization, database connectivity checks, and comprehensive
-    logging throughout its lifecycle.
+    Extends discord.ext.commands.Bot with automatic cog loading, command tree
+    synchronization, database connectivity checks, and comprehensive logging.
 
     Attributes:
-        log (logging.Logger): Logger instance for this bot's activities.
         extension_list (list[str]): List of extension names to load on startup.
+            Defaults to ["cogs.general", "cogs.api_key"].
 
     Example:
-        >>> import logging
-        >>> logger = logging.getLogger(__name__)
-        >>> bot = Bot(logger)
-        >>> # Bot is now ready to be started with bot.start(token)
+        >>> bot = Bot()
+        >>> await bot.start(token)
     """
 
-    def __init__(self, log: logging.Logger) -> None:
+    def __init__(self) -> None:
         """
-        Initialize the Bot instance with logging and default configuration.
+        Initialize the Bot instance with default configuration.
 
         Sets up Discord intents, command prefix, and extension list for automatic
         loading during startup.
 
-        Args:
-            log (logging.Logger): Logger instance for logging bot activities
-                and errors throughout the bot's lifecycle.
-
         Note:
-            - Message content intent is enabled for reading message content
-            - Command prefix is set to "/" for slash commands
-            - Extensions list includes "cogs.general" by default
+            - Message content intent is enabled
+            - Command prefix is set to "/" (primarily for compatibility)
+            - Extensions include "cogs.general" and "cogs.api_key"
         """
         # Configure Discord intents
         intents = discord.Intents.default()
@@ -82,9 +77,6 @@ class Bot(commands.Bot):
 
         # Initialize the parent Bot class
         super().__init__(command_prefix="/", intents=intents)
-
-        # Save logger
-        self.log = log
 
         # List of extensions (cogs) to load
         self.extension_list = ["cogs.general", "cogs.api_key"]
@@ -96,50 +88,41 @@ class Bot(commands.Bot):
         """
         Perform asynchronous setup tasks during bot initialization.
 
-        This method is automatically called by discord.py when the bot starts.
-        It handles extension loading, command tree synchronization, and database
-        connectivity validation.
-
-        The setup process includes:
-        1. Loading all extensions from extension_list
-        2. Synchronizing the command tree with Discord
-        3. Validating database connection
-
-        If the database connection fails, the bot will log a critical error and
-        initiate a graceful shutdown by calling close() and returning early,
-        which will cause the bot task to complete and trigger the main loop's
-        cleanup process.
+        Automatically called by discord.py when the bot starts. Handles:
+            1. Loading all extensions from extension_list
+            2. Synchronizing the command tree with Discord
+            3. Validating database connection
 
         Note:
-            - Extension loading failures are logged but don't prevent bot startup
-            - Command tree sync failures are logged but don't prevent bot startup
-            - Database connection failure triggers graceful shutdown without raising exceptions
-            - The bot will disconnect cleanly from Discord before terminating
+            - Extension loading failures are logged but don't prevent startup
+            - Command tree sync failures are logged but don't prevent startup
+            - Database connection failure triggers graceful shutdown
+            - Bot disconnects cleanly from Discord before terminating on DB failure
         """
         # Load each extension and log the outcome
         for ext in self.extension_list:
             try:
                 await self.load_extension(ext)
-                self.log.info(f"Loaded extension: {ext}")
+                log.info(f"Loaded extension: {ext}")
             except (
                 commands.ExtensionNotFound,
                 commands.ExtensionFailed,
                 commands.ExtensionAlreadyLoaded,
             ) as e:
-                self.log.error(f"Failed to load extension {ext}: {e}")
+                log.error(f"Failed to load extension {ext}: {e}")
 
         # Synchronize command tree with Discord
         try:
             await self.tree.sync()
-            self.log.info("Command tree synchronized")
+            log.info("Command tree synchronized")
         except discord.HTTPException as e:
-            self.log.error(f"Failed to sync command tree: {e}")
+            log.error(f"Failed to sync command tree: {e}")
 
         # Check database connection
         if check_db_connection():
-            self.log.info("Database connection successful")
+            log.info("Database connection successful")
         else:
-            self.log.critical("Database connection failed, shutting down bot.")
+            log.critical("Database connection failed, shutting down bot.")
             await self.close()
             return
 
@@ -147,122 +130,88 @@ class Bot(commands.Bot):
         """
         Event handler called when the bot successfully connects to Discord.
 
-        This event is triggered after the bot has logged in and is ready to
-        receive events. It logs connection confirmation and guild count.
+        Logs connection confirmation and guild count information.
 
         Note:
             This event may be called multiple times if the bot reconnects,
-            so avoid putting one-time initialization code here.
+            so avoid one-time initialization code here.
         """
-        self.log.info(f"{self.user} has connected to Discord!")
-        self.log.info(f"Bot is in {len(self.guilds)} guilds")
+        log.info(f"{self.user} has connected to Discord!")
+        log.info(f"Bot is in {len(self.guilds)} guilds")
 
     async def close(self) -> None:
         """
         Gracefully shut down the bot and clean up resources.
 
-        Performs proper cleanup including:
-        - Disconnecting from Discord
-        - Disposing of database engine connections
-        - Cleaning up internal resources
+        Performs cleanup including:
+            - Disconnecting from Discord
+            - Disposing of database engine connections
+            - Cleaning up internal bot resources
 
         Note:
-            This method should be called when shutting down the bot to ensure
-            proper cleanup and avoid resource leaks. Database cleanup happens
-            after Discord cleanup and is idempotent (safe to call multiple times).
+            - Safe to call multiple times (idempotent)
+            - Database cleanup uses a flag to ensure it only runs once
+            - Call this method when shutting down to ensure proper cleanup
         """
-        self.log.info("Closing bot and cleaning up resources...")
+        log.info("Closing bot and cleaning up resources...")
 
         # Call the parent class's close method first
         await super().close()
-        self.log.info("Discord connection closed")
+        log.info("Discord connection closed")
 
         # Dispose of database engine to close all connections
         # This happens after super().close() and uses a flag to ensure
         # it only runs once even if close() is called multiple times
         if not self._cleanup_done:
             try:
-                self.log.info("Disposing database engine...")
+                log.info("Disposing database engine...")
                 db_engine.dispose()
                 self._cleanup_done = True
-                self.log.info("Database engine disposed successfully")
+                log.info("Database engine disposed successfully")
             except Exception as e:
-                self.log.error(f"Error disposing database engine: {e}")
+                log.error(f"Error disposing database engine: {e}")
         else:
-            self.log.debug("Cleanup already performed, skipping database disposal")
+            log.debug("Cleanup already performed, skipping database disposal")
 
-        self.log.info("Bot closed successfully")
+        log.info("Bot closed successfully")
 
 
 async def main() -> int:
     """
     Main entry point for the Discord bot application.
 
-    Handles the complete bot lifecycle from initialization to shutdown, including
-    configuration loading, logging setup, signal handling, and graceful shutdown.
-
-    The application flow:
-    1. Load environment variables and validate Discord token
-    2. Configure logging from YAML file or use basic configuration
-    3. Initialize bot instance and set up signal handlers
-    4. Start bot and monitor for shutdown signals
-    5. Handle graceful shutdown and cleanup on termination
+    Manages the complete bot lifecycle from initialization to shutdown:
+        1. Validate Discord token from settings
+        2. Initialize bot instance and set up signal handlers
+        3. Start bot and monitor for shutdown signals
+        4. Handle graceful shutdown and cleanup on termination
 
     Signal Handling:
-        - Unix: SIGTERM, SIGINT, SIGHUP for graceful shutdown
-        - Windows: SIGINT for graceful shutdown
+        Unix: SIGTERM, SIGINT, SIGHUP for graceful shutdown
+        Windows: SIGINT for graceful shutdown
 
     Timeouts:
-        - Bot shutdown: 10 seconds maximum
-        - Task cleanup: 5 seconds maximum
+        Bot shutdown: 10 seconds maximum
+        Task cleanup: 5 seconds maximum
 
     Returns:
-        int: Exit code indicating success (0) or failure (1).
-
-    Environment Variables:
-        DISCORD_TOKEN (required): Discord bot authentication token
-        LOGGING_CONFIG (optional): Path to YAML logging configuration file
+        int: Exit code - 0 for success, 1 for failure.
 
     Raises:
-        SystemExit: For critical startup failures (invalid config, missing token)
+        SystemExit: Not raised directly, but intended to be used with sys.exit()
 
     Example:
         >>> import asyncio
         >>> exit_code = asyncio.run(main())
-        >>> print(f"Bot exited with code: {exit_code}")
+        >>> sys.exit(exit_code)
 
     Note:
-        This function is designed to be run as the main entry point and handles
-        all aspects of bot lifecycle management including error recovery and
-        resource cleanup.
+        Designed to be run as the main entry point with comprehensive error
+        recovery and resource cleanup handling.
     """
 
-    # Configure logging from settings
-    if settings.logging_config.exists():
-        try:
-            with open(settings.logging_config, "r") as f:
-                config = yaml.safe_load(f)
-                logging.config.dictConfig(config)
-        except (yaml.YAMLError, OSError) as e:
-            print(f"Failed to load logging config: {e}")
-            sys.exit(1)
-    else:
-        log_dir = DEFAULT_LOG_DIR
-        os.makedirs(log_dir, exist_ok=True)
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-        logging.warning(
-            f"Logging config file not found at {settings.logging_config}, using basic config"
-        )
-
-    # Create a logger for this module
-    log = logging.getLogger(__name__)
-
     # Instantiate the bot
-    bot = Bot(log)
+    bot = Bot()
 
     # Get the current event loop
     loop = asyncio.get_running_loop()
