@@ -12,32 +12,23 @@ Environment Variables:
 """
 
 import logging
-import os
 from contextlib import contextmanager
 
-from dotenv import load_dotenv
+from config import settings
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-load_dotenv()
-DB_URL = os.getenv("DATABASE_URL")
-IS_PRODUCTION = os.getenv("ENVIRONMENT") == "production"
-
 log = logging.getLogger(__name__)
-
-if DB_URL is None:
-    log.error("DATABASE_URL environment variable is not set")
-    raise ValueError("DATABASE_URL environment variable is not set")
 
 # Configure the database engine and session
 db_engine = create_engine(
-    DB_URL,
+    settings.database_url,
     pool_size=10,
     max_overflow=20,
     pool_timeout=30,
     pool_recycle=3600,
-    echo=not IS_PRODUCTION,  # True for debugging
-    connect_args={"sslmode": "require"} if IS_PRODUCTION else {},
+    echo=not settings.is_production,
+    connect_args={"sslmode": "require"} if settings.is_production else {},
 )
 db_session = sessionmaker(autocommit=False, autoflush=False, bind=db_engine)
 

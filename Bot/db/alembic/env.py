@@ -5,14 +5,13 @@ This module configures Alembic migrations for both offline and online modes,
 with support for autogeneration and type comparison.
 """
 
-import sys
 from logging.config import fileConfig
-from pathlib import Path
 
 from alembic import context
+from config import settings
 
 # Import database components (absolute imports from Bot package)
-from db.database import DB_URL, Base
+from db.database import Base
 
 # Import all models for autogenerate to detect them
 from db.models.api_key import APIKey  # noqa: F401
@@ -25,13 +24,8 @@ from sqlalchemy import engine_from_config, pool
 # Alembic Config object
 config = context.config
 
-# Validate and set database URL from environment
-if DB_URL is None:
-    raise ValueError(
-        "DATABASE_URL environment variable is not set. "
-        "Please configure it in your .env file."
-    )
-config.set_main_option("sqlalchemy.url", DB_URL)
+# Set database URL from settings
+config.set_main_option("sqlalchemy.url", settings.database_url)
 
 # Configure logging if config file exists
 if config.config_file_name is not None:

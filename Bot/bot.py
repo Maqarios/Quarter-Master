@@ -31,11 +31,9 @@ from typing import Optional
 
 import discord
 import yaml
+from config import settings
 from db import check_db_connection, db_engine
 from discord.ext import commands
-from dotenv import load_dotenv
-
-load_dotenv()
 
 # Constants
 BOT_CLOSE_TIMEOUT = 10.0
@@ -239,14 +237,10 @@ async def main() -> int:
         resource cleanup.
     """
 
-    # Load environment variables from .env file
-    logging_config_path = os.getenv("LOGGING_CONFIG")
-    TOKEN = os.getenv("DISCORD_TOKEN")
-
-    # Configure logging
-    if logging_config_path and os.path.exists(logging_config_path):
+    # Configure logging from settings
+    if settings.logging_config.exists():
         try:
-            with open(logging_config_path, "r") as f:
+            with open(settings.logging_config, "r") as f:
                 config = yaml.safe_load(f)
                 logging.config.dictConfig(config)
         except (yaml.YAMLError, OSError) as e:
@@ -261,16 +255,11 @@ async def main() -> int:
             datefmt="%Y-%m-%d %H:%M:%S",
         )
         logging.warning(
-            f"Logging config file not found at {logging_config_path}, using basic config"
+            f"Logging config file not found at {settings.logging_config}, using basic config"
         )
 
     # Create a logger for this module
     log = logging.getLogger(__name__)
-
-    # Validate the TOKEN
-    if not TOKEN or not TOKEN.strip():
-        log.error("DISCORD_TOKEN environment variable is not set or is empty.")
-        exit(1)
 
     # Instantiate the bot
     bot = Bot(log)
@@ -299,7 +288,7 @@ async def main() -> int:
     bot_task: Optional[asyncio.Task] = None
     try:
         log.info("Starting bot...")
-        bot_task = asyncio.create_task(bot.start(TOKEN))
+        bot_task = asyncio.create_task(bot.start(settings.discord_token))
 
         # Wait for either bot to finish or shutdown signal
         shutdown_task = asyncio.create_task(shutdown_event.wait())
