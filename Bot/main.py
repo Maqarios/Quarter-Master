@@ -29,7 +29,7 @@ async def main() -> int:
         loop.add_signal_handler(sig, lambda s=sig: signal_handler(s))
 
     try:
-        log.info("Starting bot and API server...")
+        log.info("Starting Entryoint...")
         bot_task = asyncio.create_task(run_bot())
         api_task = asyncio.create_task(run_api())
 
