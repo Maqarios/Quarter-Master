@@ -87,6 +87,8 @@ services:
       - ./alembic/versions:/app/alembic/versions:ro
     networks:
       - quartermaster_network
+    ports:
+      - "${API_PORT}:${API_PORT}"
     stop_signal: SIGTERM
     stop_grace_period: 15s
     init: true

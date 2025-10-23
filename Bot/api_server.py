@@ -1,6 +1,5 @@
+import asyncio
 import logging
-import os
-import sys
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -18,12 +17,6 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Quarter Master API", lifespan=lifespan)
 
 
-@app.get("/")
-async def root():
-    """Root endpoint."""
-    return {"name": "Quarter Master API", "version": "1.0.0", "docs": "/docs"}
-
-
 def configure_server() -> uvicorn.Server:
     """Configure and return a Uvicorn server instance."""
     config = uvicorn.Config(
@@ -38,6 +31,9 @@ async def run_api() -> None:
         log.info(f"Starting API Server on {settings.api_host}:{settings.api_port}...")
         server = configure_server()
         await server.serve()
+    except asyncio.CancelledError:
+        log.info("API Server received cancellation signal")
+        raise
     except Exception as e:
         log.error(f"API Server encountered an error: {e}", exc_info=True)
         raise
