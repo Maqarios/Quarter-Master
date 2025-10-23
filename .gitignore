@@ -2,7 +2,7 @@
 **/.env
 
 # Log files
-logs/
+**/logs/
 
 # Python Extra files
 **/.venv/
