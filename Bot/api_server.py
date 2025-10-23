@@ -38,4 +38,4 @@ async def run_api() -> None:
         log.error(f"API Server encountered an error: {e}", exc_info=True)
         raise
     finally:
-        log.info("API Server has shutdown.")
+        log.info("API Server has shutdown")

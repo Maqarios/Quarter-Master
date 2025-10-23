@@ -165,6 +165,29 @@ class Bot(commands.Bot):
         if not check_db_connection():
             log.critical("Database health check failed")
 
+    async def close(self) -> None:
+        """
+        Closes the bot and cleans up resources.
+
+        This method performs cleanup operations when shutting down the bot:
+        - Disposes of the database engine to close all database connections
+        - Calls the parent class's close method to properly shutdown Discord connections
+        - Logs the cleanup operations for monitoring
+
+        Returns:
+            None
+
+        Note:
+            This is a coroutine and must be awaited.
+        """
+        # Dispose of the database engine
+        db_engine.dispose()
+        log.info("Database engine disposed")
+
+        # Close the superclass resources
+        await super().close()
+        log.info("Discord bot instance closed")
+
 
 async def run_bot() -> None:
     bot = None
@@ -174,12 +197,11 @@ async def run_bot() -> None:
         await bot.start(settings.discord_token)
     except asyncio.CancelledError:
         log.info("Discord Bot received cancellation signal")
-        raise  # Re-raise to allow proper cleanup
+        raise
     except Exception as e:
         log.error(f"Discord Bot encountered an error: {e}", exc_info=True)
         raise
     finally:
         if bot and not bot.is_closed():
-            log.info("Closing Discord Bot connection...")
             await bot.close()
-        log.info("Discord Bot has shutdown.")
+        log.info("Discord Bot has shutdown")

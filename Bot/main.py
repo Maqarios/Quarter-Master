@@ -63,7 +63,7 @@ async def main() -> int:
         log.error(f"Entrypoint encountered an error: {e}", exc_info=True)
         return 1
     finally:
-        log.info("Entrypoint has shutdown.")
+        log.info("Entrypoint has shutdown")
 
 
 if __name__ == "__main__":
