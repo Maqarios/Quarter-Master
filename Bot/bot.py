@@ -67,7 +67,6 @@ class Bot(commands.Bot):
         - Command prefix set to "/"
         - Database health check monitoring task
         - Loading of extension modules (cogs) for general commands and API key management
-        - Cleanup tracking to prevent duplicate resource cleanup
         The bot inherits from discord.ext.commands.Bot and automatically starts
         the database health check task upon initialization.
         Parameters
@@ -82,8 +81,6 @@ class Bot(commands.Bot):
             Discord intents configuration with message content enabled
         extension_list : list of str
             List of cog module paths to be loaded
-        _cleanup_done : bool
-            Flag to track whether cleanup has been performed
         """
 
         # Configure Discord intents
@@ -98,9 +95,6 @@ class Bot(commands.Bot):
 
         # List of extensions (cogs) to load
         self.extension_list = ["cogs.general", "cogs.api_key"]
-
-        # Track if we've already cleaned up resources
-        self._cleanup_done = False
 
     async def setup_hook(self) -> None:
         """
@@ -171,147 +165,21 @@ class Bot(commands.Bot):
         if not check_db_connection():
             log.critical("Database health check failed")
 
-    async def close(self) -> None:
-        """
-        Gracefully shut down the bot and clean up resources.
 
-        Performs cleanup including:
-            - Disconnecting from Discord
-            - Disposing of database engine connections
-            - Cleaning up internal bot resources
-
-        Note:
-            - Safe to call multiple times (idempotent)
-            - Database cleanup uses a flag to ensure it only runs once
-            - Call this method when shutting down to ensure proper cleanup
-        """
-        log.info("Closing bot and cleaning up resources...")
-
-        # Call the parent class's close method first
-        await super().close()
-        log.info("Discord connection closed")
-
-        # Dispose of database engine to close all connections
-        # This happens after super().close() and uses a flag to ensure
-        # it only runs once even if close() is called multiple times
-        if not self._cleanup_done:
-            try:
-                log.info("Disposing database engine...")
-                db_engine.dispose()
-                self._cleanup_done = True
-                log.info("Database engine disposed successfully")
-            except Exception as e:
-                log.error(f"Error disposing database engine: {e}")
-        else:
-            log.debug("Cleanup already performed, skipping database disposal")
-
-        log.info("Bot closed successfully")
-
-
-async def main() -> int:
-    """
-    Main entry point for the Discord bot application.
-
-    Manages the complete bot lifecycle from initialization to shutdown:
-        1. Validate Discord token from settings
-        2. Initialize bot instance and set up signal handlers
-        3. Start bot and monitor for shutdown signals
-        4. Handle graceful shutdown and cleanup on termination
-
-    Signal Handling:
-        Unix: SIGTERM, SIGINT, SIGHUP for graceful shutdown
-        Windows: SIGINT for graceful shutdown
-
-    Timeouts:
-        Bot shutdown: 10 seconds maximum
-        Task cleanup: 5 seconds maximum
-
-    Returns:
-        int: Exit code - 0 for success, 1 for failure.
-
-    Raises:
-        SystemExit: Not raised directly, but intended to be used with sys.exit()
-
-    Example:
-        >>> import asyncio
-        >>> exit_code = asyncio.run(main())
-        >>> sys.exit(exit_code)
-
-    Note:
-        Designed to be run as the main entry point with comprehensive error
-        recovery and resource cleanup handling.
-    """
-
-    # Instantiate the bot
-    bot = Bot()
-
-    # Get the current event loop
-    loop = asyncio.get_running_loop()
-
-    # Create shutdown event
-    shutdown_event = asyncio.Event()
-
-    # Async signal handler
-    def signal_handler(signum: int) -> None:
-        log.info(
-            f"Received signal {signal.Signals(signum).name} ({signum}), initiating graceful shutdown..."
-        )
-        shutdown_event.set()
-
-    # Register signal handlers using the event loop (more robust than signal.signal)
-    if sys.platform != "win32":  # Unix signals
-        for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
-            loop.add_signal_handler(sig, lambda s=sig: signal_handler(s))
-    else:  # Windows fallback
-        signal.signal(signal.SIGINT, lambda s, f: signal_handler(s))
-
-    # Start the bot
-    bot_task: Optional[asyncio.Task] = None
+async def run_bot() -> None:
+    bot = None
     try:
-        log.info("Starting bot...")
-        bot_task = asyncio.create_task(bot.start(settings.discord_token))
-
-        # Wait for either bot to finish or shutdown signal
-        shutdown_task = asyncio.create_task(shutdown_event.wait())
-
-        done, pending = await asyncio.wait(
-            {bot_task, shutdown_task}, return_when=asyncio.FIRST_COMPLETED
-        )
-
-        # If shutdown was triggered, log it but don't call close() yet
-        # The finally block will handle cleanup to avoid redundant calls
-        if shutdown_event.is_set():
-            log.info("Shutdown signal received, stopping bot task...")
-
-        # Cancel any remaining tasks
-        for task in pending:
-            if not task.done():
-                task.cancel()
-                try:
-                    await asyncio.wait_for(asyncio.shield(task), timeout=TASK_CLEANUP_TIMEOUT)  # type: ignore
-                except (asyncio.CancelledError, asyncio.TimeoutError):
-                    pass
-
-    except KeyboardInterrupt:
-        log.info("Keyboard interrupt received, shutting down...")
-    except discord.LoginFailure:
-        log.error("Invalid Discord token provided")
-        return 1
+        log.info("Starting Discord Bot...")
+        bot = Bot()
+        await bot.start(settings.discord_token)
+    except asyncio.CancelledError:
+        log.info("Discord Bot received cancellation signal")
+        raise  # Re-raise to allow proper cleanup
     except Exception as e:
-        log.error(f"Unexpected error: {e}", exc_info=True)
-        return 1
+        log.error(f"Discord Bot encountered an error: {e}", exc_info=True)
+        raise
     finally:
-        # Final cleanup - ensure bot is closed and resources are cleaned up
-        # Always attempt cleanup regardless of bot state
-        try:
-            log.info("Performing final bot cleanup...")
-            # Call close() even if bot appears closed - our cleanup is idempotent
-            await asyncio.wait_for(bot.close(), timeout=BOT_CLOSE_TIMEOUT)
-        except asyncio.TimeoutError:
-            log.warning("Bot close timed out, forcing shutdown")
-        except Exception as e:
-            log.error(f"Error during final cleanup: {e}")
-
-        log.info("Application shutdown complete")
-
-    return 0
+        if bot and not bot.is_closed():
+            log.info("Closing Discord Bot connection...")
+            await bot.close()
+        log.info("Discord Bot has shutdown.")
