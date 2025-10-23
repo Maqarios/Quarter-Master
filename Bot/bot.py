@@ -33,7 +33,7 @@ from typing import Optional
 import discord
 from config import settings
 from db import check_db_connection, db_engine
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 log = logging.getLogger(__name__)
 
@@ -61,22 +61,40 @@ class Bot(commands.Bot):
 
     def __init__(self) -> None:
         """
-        Initialize the Bot instance with default configuration.
-
-        Sets up Discord intents, command prefix, and extension list for automatic
-        loading during startup.
-
-        Note:
-            - Message content intent is enabled
-            - Command prefix is set to "/" (primarily for compatibility)
-            - Extensions include "cogs.general" and "cogs.api_key"
+        Initialize the Discord bot with necessary configurations and extensions.
+        This constructor sets up the bot's core functionality including:
+        - Discord intents configuration to enable message content access
+        - Command prefix set to "/"
+        - Database health check monitoring task
+        - Loading of extension modules (cogs) for general commands and API key management
+        - Cleanup tracking to prevent duplicate resource cleanup
+        The bot inherits from discord.ext.commands.Bot and automatically starts
+        the database health check task upon initialization.
+        Parameters
+        ----------
+        None
+        Returns
+        -------
+        None
+        Attributes
+        ----------
+        intents : discord.Intents
+            Discord intents configuration with message content enabled
+        extension_list : list of str
+            List of cog module paths to be loaded
+        _cleanup_done : bool
+            Flag to track whether cleanup has been performed
         """
+
         # Configure Discord intents
         intents = discord.Intents.default()
         intents.message_content = True
 
         # Initialize the parent Bot class
         super().__init__(command_prefix="/", intents=intents)
+
+        # Start the database health check task
+        self.db_health_check.start()
 
         # List of extensions (cogs) to load
         self.extension_list = ["cogs.general", "cogs.api_key"]
@@ -138,6 +156,20 @@ class Bot(commands.Bot):
         """
         log.info(f"{self.user} has connected to Discord!")
         log.info(f"Bot is in {len(self.guilds)} guilds")
+
+    @tasks.loop(minutes=10)
+    async def db_health_check(self) -> None:
+        """
+        Perform a database health check and log critical errors if the connection fails.
+        This coroutine checks the database connection status and logs a critical message
+        if the connection is not healthy. It does not raise exceptions or halt execution.
+        Returns:
+            None
+        Raises:
+            None - Errors are logged but not raised
+        """
+        if not check_db_connection():
+            log.critical("Database health check failed")
 
     async def close(self) -> None:
         """
