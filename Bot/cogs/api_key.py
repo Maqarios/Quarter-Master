@@ -113,13 +113,9 @@ class APIKeyCog(commands.Cog):
 
         with get_db_context() as db:
             try:
-                # Let create_api_key handle validation
                 plaintext_key, api_key_record = create_api_key(
                     db=db, discord_id=discord_id, description=description
                 )
-
-                # Commit the transaction
-                db.commit()
 
                 log.info(f"User {discord_id} generated API key {api_key_record.id}")
 
@@ -139,39 +135,33 @@ class APIKeyCog(commands.Cog):
                 )
 
             except ValueError as e:
-                # Validation errors from create_api_key
                 log.warning(
                     f"Validation error generating API key for user {discord_id}: {e}"
                 )
                 await interaction.followup.send(
-                    f"❌ **Validation Error:** {str(e)}",
-                    ephemeral=True,
+                    f"❌ **Validation Error:** {str(e)}", ephemeral=True
                 )
                 db.rollback()
 
             except SQLAlchemyError as e:
-                # Database errors
                 log.error(
                     f"Database error generating API key for user {discord_id}: {e}"
                 )
                 await interaction.followup.send(
-                    "❌ **Database Error:** An error occurred while generating your API key. "
-                    "Please try again later or contact support.",
+                    "❌ **Database Error:** An error occurred while generating your API key.",
                     ephemeral=True,
                 )
-                db.rollback()
+                raise
 
             except Exception as e:
-                # Unexpected errors
                 log.exception(
                     f"Unexpected error generating API key for user {discord_id}: {e}"
                 )
                 await interaction.followup.send(
-                    "❌ **Unexpected Error:** Something went wrong. "
-                    "Please contact support if this persists.",
+                    "❌ **Unexpected Error:** Something went wrong.",
                     ephemeral=True,
                 )
-                db.rollback()
+                raise
 
     @generate_api_key.error
     async def generate_api_key_error(
