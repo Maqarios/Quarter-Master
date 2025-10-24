@@ -274,7 +274,7 @@ def authenticate_key(db: Session, provided_key: str) -> Optional[APIKey]:
         active_keys = db.query(APIKey).filter(APIKey.revoked_at.is_(None)).all()  # type: ignore
 
         for api_key in active_keys:
-            if verify_api_key(provided_key, str(api_key.hashed_key)):
+            if verify_api_key(provided_key, api_key.hashed_key): # type: ignore
                 # Update last used timestamp
                 api_key.update_last_used()
                 db.flush()
