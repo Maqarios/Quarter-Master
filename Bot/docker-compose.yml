@@ -48,8 +48,8 @@ services:
     environment:
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
     volumes:
-      - ./alembic:/app/alembic:ro
-      - ./alembic.ini:/app/alembic.ini:ro
+      - ./db/alembic:/app/db/alembic
+      - ./alembic.ini:/app/alembic.ini
     networks:
       - quartermaster_network
     entrypoint: []
@@ -84,7 +84,7 @@ services:
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
     volumes:
       - ./logs:/app/logs
-      - ./alembic/versions:/app/alembic/versions:ro
+      - ./db/alembic/versions:/app/db/alembic/versions
     networks:
       - quartermaster_network
     ports:
