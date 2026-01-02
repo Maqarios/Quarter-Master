@@ -15,6 +15,7 @@ from db.database import Base
 
 # Import all models for autogenerate to detect them
 from db.models.api_key import APIKey  # noqa: F401
+from db.models.session_token import SessionToken  # noqa: F401
 from sqlalchemy import engine_from_config, pool
 
 # Add more model imports here as you create them:
