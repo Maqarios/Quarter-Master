@@ -3,10 +3,10 @@ disable_existing_loggers: false
 
 formatters:
   simple:
-    format: '%(asctime)s | %(name)s | %(levelname)s | %(message)s'
+    format: '%(asctime)s | %(name)-20s | %(levelname)-8s | %(message)s'
     datefmt: '%Y-%m-%d %H:%M:%S'
   detailed:
-    format: '%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s'
+    format: '%(asctime)s | %(name)-20s | %(levelname)-8s | %(funcName)-25s:%(lineno)-4d | %(message)s'
     datefmt: '%Y-%m-%d %H:%M:%S'
 
 handlers:
