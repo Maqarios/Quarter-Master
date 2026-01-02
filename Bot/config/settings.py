@@ -59,7 +59,8 @@ class Settings(BaseSettings):
     api_host: str = Field(default="0.0.0.0", description="API server bind address")
     api_port: int = Field(default=8000, ge=1, le=65535, description="API server port")
     ws_url: str = Field(
-        "wss://localhost:8000/ws", description="WebSocket URL for client connections"
+        default="wss://localhost:8000/ws",
+        description="WebSocket URL for client connections",
     )
     session_token_expiry_minutes: int = Field(
         default=60, ge=1, description="Session token validity period in minutes"
