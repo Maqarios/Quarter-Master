@@ -141,7 +141,6 @@ class APIKeyCog(commands.Cog):
                 await interaction.followup.send(
                     f"❌ **Validation Error:** {str(e)}", ephemeral=True
                 )
-                db.rollback()
 
             except SQLAlchemyError as e:
                 log.error(

@@ -72,11 +72,14 @@ def check_db_connection():
         return False
 
 
-# Utility context manager for database sessions (Transaction Management)
+# Utility context manager for database sessions (Automatic Transaction Management)
 @contextmanager
 def get_db_context():
     """
     Context manager for database sessions with automatic transaction management.
+
+    This is the recommended pattern for Discord bot commands and synchronous
+    operations where you want automatic commit/rollback handling.
 
     Provides a database session that automatically commits on success or
     rolls back on exceptions. The session is always closed regardless of
@@ -93,6 +96,9 @@ def get_db_context():
         ...     user = User(name="John")
         ...     db.add(user)
         ...     # Automatically commits on exit
+
+    Note:
+        Use this for Discord bot commands. For FastAPI routes, use get_db() instead.
     """
     # Create a new database session
     db = db_session()
@@ -110,27 +116,44 @@ def get_db_context():
         db.close()
 
 
-# Utility generator for database sessions (Manual Control)
+# Utility generator for database sessions (Manual Transaction Control)
 def get_db():
     """
     Generator function for database sessions with manual transaction control.
 
+    This is the recommended pattern for FastAPI route handlers where you need
+    explicit control over transactions and want to use dependency injection.
+
     Provides a database session that requires manual commit/rollback handling.
-    The session is automatically closed after use. This is useful when you
-    need fine-grained control over transactions.
+    The session is automatically closed after use. This pattern integrates
+    seamlessly with FastAPI's Depends() system.
 
     Yields:
         Session: SQLAlchemy database session
 
     Example:
-        >>> for db in get_db():
+        >>> from fastapi import APIRouter, Depends
+        >>> from sqlalchemy.orm import Session
+        >>>
+        >>> router = APIRouter()
+        >>>
+        >>> @router.post("/users")
+        >>> async def create_user(
+        ...     name: str,
+        ...     db: Session = Depends(get_db)
+        ... ):
         ...     try:
-        ...         user = User(name="John")
+        ...         user = User(name=name)
         ...         db.add(user)
         ...         db.commit()
+        ...         db.refresh(user)
+        ...         return user
         ...     except Exception:
         ...         db.rollback()
         ...         raise
+
+    Note:
+        Use this for FastAPI routes. For Discord bot commands, use get_db_context() instead.
     """
     db = db_session()
     try:
