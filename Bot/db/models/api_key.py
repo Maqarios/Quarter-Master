@@ -40,6 +40,7 @@ from datetime import datetime, timezone
 from db import Base
 from sqlalchemy import BigInteger, Column, DateTime, Index, String
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 
@@ -59,6 +60,7 @@ class APIKey(Base):
         created_at (datetime): Timestamp when the key was created
         last_used_at (datetime, optional): Last time this key was used
         revoked_at (datetime, optional): When the key was revoked (NULL = active)
+        session_tokens (list[SessionToken]): Related session tokens (cascade delete)
 
     Note:
         - API keys should never be stored in plaintext
@@ -117,6 +119,14 @@ class APIKey(Base):
         DateTime(timezone=True),
         nullable=True,
         comment="When the key was revoked (NULL = active)",
+    )
+
+    # Relationship to SessionToken
+    session_tokens = relationship(
+        "SessionToken",
+        back_populates="api_key",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     # Composite index for efficient queries
