@@ -27,6 +27,7 @@ db_engine = create_engine(
     max_overflow=20,
     pool_timeout=30,
     pool_recycle=3600,
+    pool_pre_ping=True,
     echo=not settings.is_production,
     connect_args={"sslmode": "require"} if settings.is_production else {},
 )
